@@ -186,7 +186,7 @@ CREATE TABLE enderecos (
 
 ## Observações
 
-As questões de lógica e banco de dados não conseguir fazer, pois mão mostra nenhuma imagem ouo algo que eu possa realmente responder.
+As questões de lógica e banco de dados não conseguir fazer, pois não mostra nenhuma imagem ou algo que eu possa realmente analisar a questão e responde-las.
 
 ---
 
