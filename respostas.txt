@@ -1,0 +1,199 @@
+================================================================
+RESPOSTAS ÀS QUESTÕES DO EXERCÍCIO
+Candidato: [Seu Nome]
+Vaga: Estágio em Desenvolvimento PHP
+================================================================
+
+----------------------------------------------------------------
+1. O QUE VOCÊ FARIA PARA MELHORAR O CRUD DE CONTATOS?
+----------------------------------------------------------------
+
+Identifiquei os seguintes problemas no código original e os corrigi:
+
+PROBLEMA 1 — SQL Injection
+  O código original usava os métodos escapar() e preparar() para
+  tentar sanitizar dados manualmente, concatenando strings no SQL:
+
+  ANTES:
+    $query = "INSERT INTO contatos (".implode(', ', array_keys($colunas)).")
+              VALUES (".implode(', ', array_values($colunas)).")";
+
+  DEPOIS (prepared statements PDO):
+    $stmt = $conexao->prepare(
+        "INSERT INTO contatos (nome, telefone, email)
+         VALUES (:nome, :telefone, :email)"
+    );
+    $stmt->execute([':nome' => $this->nome, ...]);
+
+  Prepared statements separam código SQL de dados, eliminando
+  completamente o risco de SQL Injection.
+
+PROBLEMA 2 — count() com exec()
+  O método count() original usava exec() para executar um SELECT,
+  mas exec() retorna o número de linhas AFETADAS, não o resultado
+  de um SELECT COUNT(*). Estava tecnicamente incorreto.
+
+  ANTES:  $count = $conexao->exec("SELECT count(*) FROM contatos");
+  DEPOIS: $stmt  = $conexao->query("SELECT COUNT(*) FROM contatos WHERE deleted_at IS NULL");
+          return (int) $stmt->fetchColumn();
+
+PROBLEMA 3 — XSS (Cross-Site Scripting) nas views
+  Todos os dados exibidos nas views eram impressos diretamente,
+  permitindo que um usuário injetasse HTML ou JavaScript malicioso.
+
+  ANTES:  echo $contato->nome;
+  DEPOIS: echo htmlspecialchars($contato->nome);
+
+PROBLEMA 4 — Sem tratamento de erros no Controller
+  O ContatosController original não verificava se Contato::find()
+  retornou false antes de usar o objeto, causando erros fatais.
+
+  DEPOIS: verificação explícita + exceção com mensagem amigável.
+
+PROBLEMA 5 — Sem feedback visual ao usuário
+  Após salvar, editar ou excluir, não havia nenhuma confirmação.
+  Implementamos flash messages que aparecem na próxima tela.
+
+MELHORIA EXTRA — Busca por nome
+  Adicionamos campo de busca na listagem de contatos e usuários,
+  usando LIKE no banco com parâmetro bind para segurança.
+
+
+----------------------------------------------------------------
+2. COMO INCLUIR EXCLUSÃO LÓGICA?
+----------------------------------------------------------------
+
+Exclusão lógica significa NÃO deletar fisicamente o registro.
+Em vez disso, marcamos uma coluna indicando que foi "removido".
+
+CAMPO ADICIONADO NA TABELA:
+  deleted_at TIMESTAMP NULL DEFAULT NULL
+
+REGRA:
+  NULL        = registro ativo e visível
+  Preenchido  = registro "excluído" (invisível, mas preservado)
+
+ANTES (exclusão física — irreversível):
+  DELETE FROM contatos WHERE id = '5';
+
+DEPOIS (exclusão lógica — reversível):
+  UPDATE contatos
+     SET deleted_at = NOW(), ativo = 0
+   WHERE id = :id AND deleted_at IS NULL;
+
+TODAS AS CONSULTAS DE LEITURA PASSAM A FILTRAR:
+  WHERE deleted_at IS NULL
+
+POR QUE USAR EXCLUSÃO LÓGICA?
+
+  1. Auditoria: o registro permanece no banco para histórico
+  2. Recuperação: possível restaurar um dado excluído por engano
+  3. Integridade: foreign keys de outras tabelas não são quebradas
+  4. LGPD: permite anonimizar dados sensíveis sem deletar o registro
+  5. Relatórios: possível gerar relatórios de itens excluídos
+
+
+----------------------------------------------------------------
+3. PADRÕES DE PROJETO IDENTIFICADOS E IMPLEMENTADOS
+----------------------------------------------------------------
+
+PADRÕES JÁ EXISTENTES NO PROJETO ORIGINAL:
+
+  a) SINGLETON — Conexao.php
+     Garante que apenas UMA instância de conexão PDO seja criada
+     durante toda a requisição, evitando múltiplas conexões ao banco.
+     Implementado com método estático getInstance() e construtor privado.
+
+  b) ACTIVE RECORD — Contato.php
+     O Model conhece o banco e possui métodos de persistência
+     (save, find, all, destroy) diretamente na classe.
+     O objeto representa tanto os dados quanto as operações no banco.
+
+  c) MVC (Model-View-Controller)
+     Model:      Contato.php, Usuario.php  → dados e banco
+     View:       grade.php, form.php       → HTML apresentado ao usuário
+     Controller: ContatosController.php    → lógica e fluxo da aplicação
+
+  d) FRONT CONTROLLER — index.php
+     Toda requisição passa por um único ponto de entrada (index.php),
+     que lê os parâmetros GET e despacha para o controller correto.
+
+  e) TEMPLATE METHOD — Controller.php
+     A classe base Controller define o método view() que é herdado
+     por todos os controllers filhos, evitando repetição de código.
+
+PADRÕES QUE IMPLEMENTAMOS:
+
+  f) FLASH MESSAGE (Session-based Notification Pattern)
+     Mensagens de sucesso/erro salvas na sessão e exibidas na
+     próxima requisição, após redirecionamento. Implementado no
+     Controller base com os métodos flash() e getFlash().
+
+PADRÕES QUE PODERIAM SER ADICIONADOS:
+
+  g) REPOSITORY
+     Separar a lógica SQL dos Models em classes Repository dedicadas.
+     Os Models ficariam apenas com regras de negócio.
+     Ex: ContatoRepository::findAll(), ContatoRepository::save()
+
+  h) OBSERVER / EVENT
+     Disparar eventos ao criar um usuário (ex: enviar e-mail de
+     boas-vindas) sem acoplar essa lógica diretamente ao save().
+
+  i) STRATEGY
+     Definir uma interface (ModelInterface) com os métodos
+     save(), find(), all(), destroy() para padronizar todos os Models.
+
+
+----------------------------------------------------------------
+4. COMO INCLUIR TRATAMENTO DE EXCEÇÃO?
+----------------------------------------------------------------
+
+ESTRATÉGIA ADOTADA EM CAMADAS:
+
+  CAMADA 1 — Models (Contato.php, Usuario.php)
+    Cada método que acessa o banco está envolto em try/catch.
+    PDOException é capturada e relançada como RuntimeException
+    com mensagem legível, sem expor detalhes internos do banco.
+
+    try {
+        $stmt = $conexao->prepare("...");
+        $stmt->execute([...]);
+    } catch (\PDOException $e) {
+        throw new RuntimeException("Erro ao salvar contato: " . $e->getMessage());
+    }
+
+  CAMADA 2 — Controllers
+    Cada action captura RuntimeException e decide o que fazer:
+    - Voltar ao formulário com a mensagem de erro visível
+    - Redirecionar para a listagem com flash de erro
+    - Exibir alert na tela
+
+    try {
+        $contato->save();
+        $this->flash('sucesso', 'Contato salvo com sucesso!');
+        $this->redirecionar('...');
+    } catch (RuntimeException $e) {
+        return $this->view('form', ['erro' => $e->getMessage()]);
+    }
+
+  CAMADA 3 — Validação antes do banco
+    Campos obrigatórios, formato de e-mail, tamanho de senha e
+    confirmação de senha são verificados ANTES de qualquer acesso
+    ao banco. Se inválido, lança RuntimeException imediatamente.
+
+  CAMADA 4 — Views
+    Exibem as mensagens de erro de forma amigável com alert Bootstrap.
+    Nunca exibem detalhes técnicos ao usuário final.
+
+PRINCÍPIO GERAL:
+  Model      → lança exceções técnicas (PDO, regras de negócio)
+  Controller → captura, trata e decide a resposta
+  View       → exibe mensagem amigável ao usuário
+
+REGRA DE OURO:
+  Nunca expor stack trace ou mensagem de PDO diretamente ao usuário.
+  O usuário vê: "Erro ao salvar contato."
+  O log vê:     a mensagem técnica completa do banco.
+
+================================================================
