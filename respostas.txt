@@ -1,12 +1,10 @@
-================================================================
-RESPOSTAS ÀS QUESTÕES DO EXERCÍCIO
-Candidato: [Seu Nome]
-Vaga: Estágio em Desenvolvimento PHP
-================================================================
 
-----------------------------------------------------------------
+RESPOSTAS ÀS QUESTÕES DO EXERCÍCIO
+Candidato: [Plinio Marcus]
+Vaga: Estágio em Desenvolvimento PHP
+
 1. O QUE VOCÊ FARIA PARA MELHORAR O CRUD DE CONTATOS?
-----------------------------------------------------------------
+
 
 Identifiquei os seguintes problemas no código original e os corrigi:
 
@@ -59,9 +57,8 @@ MELHORIA EXTRA — Busca por nome
   usando LIKE no banco com parâmetro bind para segurança.
 
 
-----------------------------------------------------------------
 2. COMO INCLUIR EXCLUSÃO LÓGICA?
-----------------------------------------------------------------
+
 
 Exclusão lógica significa NÃO deletar fisicamente o registro.
 Em vez disso, marcamos uma coluna indicando que foi "removido".
@@ -93,9 +90,8 @@ POR QUE USAR EXCLUSÃO LÓGICA?
   5. Relatórios: possível gerar relatórios de itens excluídos
 
 
-----------------------------------------------------------------
 3. PADRÕES DE PROJETO IDENTIFICADOS E IMPLEMENTADOS
-----------------------------------------------------------------
+
 
 PADRÕES JÁ EXISTENTES NO PROJETO ORIGINAL:
 
@@ -144,10 +140,7 @@ PADRÕES QUE PODERIAM SER ADICIONADOS:
      Definir uma interface (ModelInterface) com os métodos
      save(), find(), all(), destroy() para padronizar todos os Models.
 
-
-----------------------------------------------------------------
 4. COMO INCLUIR TRATAMENTO DE EXCEÇÃO?
-----------------------------------------------------------------
 
 ESTRATÉGIA ADOTADA EM CAMADAS:
 
@@ -187,13 +180,12 @@ ESTRATÉGIA ADOTADA EM CAMADAS:
     Nunca exibem detalhes técnicos ao usuário final.
 
 PRINCÍPIO GERAL:
-  Model      → lança exceções técnicas (PDO, regras de negócio)
-  Controller → captura, trata e decide a resposta
-  View       → exibe mensagem amigável ao usuário
+  Model      -  lança exceções técnicas (PDO, regras de negócio)
+  Controller -  captura, trata e decide a resposta
+  View       -  12exibe mensagem amigável ao usuário
 
-REGRA DE OURO:
+REGRA IMPORTATE:
   Nunca expor stack trace ou mensagem de PDO diretamente ao usuário.
   O usuário vê: "Erro ao salvar contato."
   O log vê:     a mensagem técnica completa do banco.
 
-================================================================
