@@ -3,6 +3,7 @@ RESPOSTAS ÀS QUESTÕES DO EXERCÍCIO
 Candidato: [Plinio Marcus]
 Vaga: Estágio em Desenvolvimento PHP
 
+
 1. O QUE VOCÊ FARIA PARA MELHORAR O CRUD DE CONTATOS?
 
 
